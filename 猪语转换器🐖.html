@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🐖 猪语转换器</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      background: linear-gradient(135deg, #f9e3d0, #fbd9c0);
+      min-height: 100vh;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    .card {
+      background: #fffbf7;
+      border-radius: 24px;
+      width: 90%;
+      max-width: 680px;
+      padding: 36px;
+      box-shadow: 0 12px 32px rgba(201, 137, 96, 0.25);
+      border: 2px solid #e7bc9f;
+    }
+
+    h1 {
+      text-align: center;
+      color: #b46a45;
+      margin: 0 0 8px;
+      font-size: 32px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #a07a63;
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+
+    label {
+      font-size: 14px;
+      font-weight: 600;
+      color: #8b5b3e;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 110px;
+      border: 2px solid #e5b898;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 16px;
+      resize: vertical;
+      outline: none;
+      background: #fffdfb;
+      transition: border-color 0.2s;
+    }
+
+    textarea:focus {
+      border-color: #cf8055;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      margin: 16px 0;
+    }
+
+    button {
+      flex: 1;
+      padding: 12px 0;
+      border: none;
+      border-radius: 40px;
+      font-size: 17px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.2s;
+    }
+
+    .btn-encode {
+      background: #e8996f;
+      color: #fff;
+      box-shadow: 0 4px 0 #b96a45;
+    }
+
+    .btn-decode {
+      background: #f6c5a3;
+      color: #6b3f28;
+      box-shadow: 0 4px 0 #cb935f;
+    }
+
+    button:active {
+      transform: translateY(3px);
+      box-shadow: none;
+    }
+
+    .info {
+      text-align: center;
+      background: #fae8d9;
+      border-radius: 12px;
+      padding: 10px;
+      font-size: 13px;
+      color: #7d5a42;
+      margin-top: 16px;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h1>🐖 猪语转换器</h1>
+    <p class="subtitle">任意字符 ↔ 猪语 | 16 个猪语符号</p>
+
+    <label for="inputText">输入文字或猪语</label>
+    <textarea id="inputText" placeholder="在这里输入要转换的内容…"></textarea>
+
+    <div class="btn-group">
+      <button class="btn-encode" onclick="encode()">编码</button>
+      <button class="btn-decode" onclick="decode()">解码</button>
+    </div>
+
+    <label for="outputText">结果</label>
+    <textarea id="outputText" placeholder="转换结果会显示在这里…"></textarea>
+
+    <div class="info" id="info">
+      🐖 正在计算编码参数…
+    </div>
+  </div>
+
+  <script>
+    // ================== 编码池 ==================
+    // 可以任意增删符号，只要每个符号唯一、顺序固定即可
+    const POOL = ["🐖", "㊗️", "猪", "铸", "币", "？", "！", "（", "）", "~", "_", "😭", "🤔", "🤓", "😨", "😇"];
+
+    // 建立 符号 -> 数字 的映射
+    const TOKEN_INDEX = {};
+    POOL.forEach((token, index) => {
+      TOKEN_INDEX[token] = index;
+    });
+
+    // 计算每个字节需要几个猪语符号
+    function getBit() {
+      let bit = 1;
+      while (Math.pow(POOL.length, bit) < 256) {
+        bit++;
+      }
+      return bit;
+    }
+
+    // 把猪语字符串拆分成符号数组
+    function splitPig(pigStr) {
+      const tokens = [];
+      let i = 0;
+      while (i < pigStr.length) {
+        let matched = false;
+        for (const token of POOL) {
+          if (pigStr.startsWith(token, i)) {
+            tokens.push(token);
+            i += token.length;
+            matched = true;
+            break;
+          }
+        }
+        if (!matched) {
+          throw new Error("发现无法识别的猪语符号");
+        }
+      }
+      return tokens;
+    }
+
+    // 编码：文字 -> 猪语
+    function encode() {
+      try {
+        const text = document.getElementById("inputText").value;
+        if (!text) return;
+
+        const bytes = new TextEncoder().encode(text);
+        const bit = getBit();
+        const base = POOL.length;
+        let result = "";
+
+        for (const byte of bytes) {
+          let v = byte;
+          let digits = [];
+
+          for (let p = bit - 1; p >= 0; p--) {
+            const radix = Math.pow(base, p);
+            digits.push(Math.floor(v / radix));
+            v = v % radix;
+          }
+
+          for (const d of digits) {
+            result += POOL[d];
+          }
+        }
+
+        document.getElementById("outputText").value = result;
+        updateInfo();
+      } catch (e) {
+        alert("编码出错：" + e.message);
+      }
+    }
+
+    // 解码：猪语 -> 文字
+    function decode() {
+      try {
+        // 去掉空白字符，方便粘贴时带上空格或换行
+        const pig = document.getElementById("inputText").value.replace(/\s+/g, "");
+        if (!pig) return;
+
+        const tokens = splitPig(pig);
+        const bit = getBit();
+        const base = POOL.length;
+
+        if (tokens.length % bit !== 0) {
+          throw new Error("猪语长度不正确，无法解码");
+        }
+
+        const bytes = [];
+        for (let i = 0; i < tokens.length; i += bit) {
+          let value = 0;
+          for (let j = 0; j < bit; j++) {
+            value = value * base + TOKEN_INDEX[tokens[i + j]];
+          }
+          if (value > 255) {
+            throw new Error("编码异常，某个字节值超出范围");
+          }
+          bytes.push(value);
+        }
+
+        const text = new TextDecoder().decode(new Uint8Array(bytes));
+        document.getElementById("outputText").value = text;
+        updateInfo();
+      } catch (e) {
+        alert("解码出错：" + e.message);
+      }
+    }
+
+    // 显示编码信息
+    function updateInfo() {
+      const bit = getBit();
+      const info = document.getElementById("info");
+      info.textContent = `🐖 编码池：${POOL.length} 个符号　|　每个字节使用 ${bit} 个符号　|　可表示 ${Math.pow(POOL.length, bit)} 种组合`;
+    }
+
+    // 页面加载时先显示一次信息
+    window.addEventListener("DOMContentLoaded", updateInfo);
+  </script>
+
+</body>
+</html>
